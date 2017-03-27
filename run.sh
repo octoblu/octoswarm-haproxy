@@ -87,6 +87,38 @@ split_comma(){
   echo $data
 }
 
+run_haproxy() {
+  haproxy -f /usr/local/etc/haproxy/haproxy.cfg &
+  child=$!
+  echo "Waiting for child process: $child"
+  wait "$child"
+}
+
+add_backend() {
+  local service_id="$1"
+  local exit_code
+  local service_name="$(docker service inspect "$service_id" | jq -r '.[].Spec.Name')"
+  local hostname="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.host"')"
+  if [ "$hostname" == "null" ]; then
+    continue
+  fi
+  local port="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.port"')"
+  if [ "$port" == "null" ]; then
+    port="80"
+  fi
+  echo -n "adding $service_name ($service_id) [$hostname]... "
+  echo >> haproxy.cfg
+  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" envsubst < backend.template >> haproxy.cfg
+
+  exit_code=$?
+
+  if [ "$exit_code" != "0" ]; then
+    echo 'ERROR!'
+  else
+    echo 'done.'
+  fi
+}
+
 main() {
   # Define args up here
   while [ "$1" != "" ]; do
@@ -134,28 +166,12 @@ main() {
   cp haproxy.cfg.template haproxy.cfg
 
   for service_id in "${services[@]}"; do
-    local exit_code
-    local service_name="$(docker service inspect "$service_id" | jq -r '.[].Spec.Name')"
-    local hostname="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.host"')"
-    if [ "$hostname" == "null" ]; then
-      continue
-    fi
-    local port="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.port"')"
-    if [ "$port" == "null" ]; then
-      port="80"
-    fi
-    echo -n "adding $service_name ($service_id) [$hostname]... "
-    echo >> haproxy.cfg
-    env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" envsubst < backend.template >> haproxy.cfg
-
-    exit_code=$?
-
-    if [ "$exit_code" != "0" ]; then
-      echo 'ERROR!'
-    else
-      echo 'done.'
-    fi
+    add_backend "$service_id"
   done
+
+  mkdir -p /usr/local/etc/haproxy
+  mv haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg
+  run_haproxy
 }
 
 main "$@"
