@@ -22,3 +22,7 @@ defaults
   option http-server-close      # enable HTTP connection closing on the server side
   option abortonclose           # enable early dropping of aborted requests from pending queue
   option httpchk                # enable HTTP protocol to check on servers health
+
+  listen healthcheck
+    bind :8080
+    errorfile 200 /usr/src/app/healthcheck.json
