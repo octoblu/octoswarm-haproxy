@@ -3,7 +3,7 @@ backend ${SERVICE}
   option redispatch
   option forwardfor
   # this must be the full url for some reason
-  option httpchk GET https://${HOSTNAME}/healthcheck
+  option httpchk GET ${PROTOCOL}://${HOSTNAME}:${PORT}${HEALTHCHECK_PATH}
   server ${SERVICE} ${HOSTNAME}:${PORT} resolvers dns resolve-prefer ipv4 check inter 1m
   http-request set-header Host ${HOSTNAME}
   http-request add-header X-Forwarded-Proto https if { ssl_fc }

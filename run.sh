@@ -100,15 +100,23 @@ add_backend() {
   local service_name="$(docker service inspect "$service_id" | jq -r '.[].Spec.Name')"
   local hostname="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.host"')"
   if [ "$hostname" == "null" ]; then
-    continue
+    hostname="$service_name"
   fi
   local port="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.port"')"
   if [ "$port" == "null" ]; then
     port="80"
   fi
-  echo -n "adding $service_name ($service_id) [$hostname]... "
+  local protocol="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.protocol"')"
+  if [ "$protocol" == "null" ]; then
+    protocol="http"
+  fi
+  local healthcheck_path="$(docker service inspect "$service_id" | jq -r '.[].Spec.Labels."octoswarm.haproxy.healthcheck_path"')"
+  if [ "$healthcheck_path" == "null" ]; then
+    healthcheck_path="/healthcheck"
+  fi
+  echo -n "adding $service_name ($service_id) [$protocol://$hostname:$port$healthcheck_path]... "
   echo >> haproxy.cfg
-  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" envsubst < backend.template >> haproxy.cfg
+  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" PROTOCOL="$protocol" envsubst < backend.template >> haproxy.cfg
 
   exit_code=$?
 
@@ -159,7 +167,7 @@ main() {
     shift
   done
 
-  local services=( $(docker service ls -q) )
+  local services=( $(docker service ls -q --filter label=octoswarm.haproxy.enabled=true) )
 
   assert_required_params "$services"
 
