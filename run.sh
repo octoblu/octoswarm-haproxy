@@ -116,7 +116,7 @@ add_backend() {
   fi
   echo -n "adding $service_name ($service_id) [$protocol://$hostname:$port$healthcheck_path]... "
   echo >> haproxy.cfg
-  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" PROTOCOL="$protocol" envsubst < backend.template >> haproxy.cfg
+  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" PROTOCOL="$protocol" HEALTHCHECK_PATH="$healthcheck_path" envsubst < backend.template >> haproxy.cfg
 
   exit_code=$?
 
