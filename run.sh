@@ -75,16 +75,15 @@ version(){
   fi
 }
 
-split_semicolon(){
-  local in="$1"
-  local data="$(IFS=';' read -ra DATA <<< "$in"; echo "${DATA[@]}")"
-  echo $data
-}
-
 split_comma(){
   local in="$1"
   local data="$(IFS=',' read -ra DATA <<< "$in"; echo "${DATA[@]}")"
   echo $data
+}
+
+run_static(){
+  busybox httpd -p 8080 -h static
+  sleep 5
 }
 
 run_haproxy() {
@@ -115,8 +114,9 @@ add_backend() {
     healthcheck_path="/healthcheck"
   fi
   echo -n "adding $service_name ($service_id) [$protocol://$hostname:$port$healthcheck_path]... "
-  echo >> haproxy.cfg
-  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" PROTOCOL="$protocol" HEALTHCHECK_PATH="$healthcheck_path" envsubst < backend.template >> haproxy.cfg
+  echo >> /usr/local/etc/haproxy/haproxy.cfg
+  echo "$hostname $service_name" >> /usr/local/etc/haproxy/subdomains.map
+  env SERVICE="$service_name" HOSTNAME="$hostname" PORT="$port" PROTOCOL="$protocol" HEALTHCHECK_PATH="$healthcheck_path" envsubst < backend.template >> /usr/local/etc/haproxy/haproxy.cfg
 
   exit_code=$?
 
@@ -171,14 +171,14 @@ main() {
 
   assert_required_params "$services"
 
-  cp haproxy.cfg.template haproxy.cfg
+  mkdir -p /usr/local/etc/haproxy \
+    && cp haproxy.cfg.template /usr/local/etc/haproxy/haproxy.cfg
 
   for service_id in "${services[@]}"; do
     add_backend "$service_id"
   done
 
-  mkdir -p /usr/local/etc/haproxy
-  mv haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg
+  run_static
   run_haproxy
 }
 

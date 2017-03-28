@@ -13,6 +13,7 @@ RUN curl -fsSLO "https://get.docker.com/builds/Linux/x86_64/docker-$DOCKER_VERSI
   && rm "docker-$DOCKER_VERSION.tgz"
 
 WORKDIR /usr/src/app
-COPY run.sh healthcheck.json haproxy.cfg.template backend.template /usr/src/app/
+COPY run.sh haproxy.cfg.template backend.template /usr/src/app/
+COPY static/ /usr/src/app/static/
 
 CMD ["./run.sh"]
