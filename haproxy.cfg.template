@@ -25,4 +25,4 @@ defaults
 
 frontend http-in
   bind :80
-  use_backend %[req.hdr(host),lower,map_dom(/usr/local/etc/haproxy/subdomains.map)]
+  use_backend %[req.hdr(host),lower,map_str(/usr/local/etc/haproxy/subdomains.map)]
